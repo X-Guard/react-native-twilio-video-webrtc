@@ -11,7 +11,7 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.facebook.react.common.MapBuilder;
-import com.facebook.react.uimanager.SimpleViewManager;
+import com.facebook.react.uimanager.ViewGroupManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 
@@ -21,7 +21,7 @@ import java.util.Map;
 
 import static com.twiliorn.library.RNVideoViewGroup.Events.ON_FRAME_DIMENSIONS_CHANGED;
 
-public class TwilioRemotePreviewManager extends SimpleViewManager<TwilioRemotePreview> {
+public class TwilioRemotePreviewManager extends ViewGroupManager<TwilioRemotePreview> {
 
     public static final String REACT_CLASS = "RNTwilioRemotePreview";
     public String myTrackSid = "";
