@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef } from 'react'
 import {
   AppRegistry,
   StyleSheet,
@@ -8,139 +8,138 @@ import {
   Button,
   PermissionsAndroid,
   Platform,
-  TouchableOpacity,
-} from "react-native";
+  TouchableOpacity
+} from 'react-native'
 
 import {
   TwilioVideoLocalView,
   TwilioVideoParticipantView,
-  TwilioVideo,
-} from "react-native-twilio-video-webrtc";
+  TwilioVideo
+} from 'react-native-twilio-video-webrtc'
 
-import styleSheet from "./styles";
+import styleSheet from './styles'
 
-const styles = StyleSheet.create(styleSheet);
+const styles = StyleSheet.create(styleSheet)
 
 const Example = (props) => {
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [status, setStatus] = useState("disconnected");
-  const [participants, setParticipants] = useState(new Map());
-  const [videoTracks, setVideoTracks] = useState(new Map());
-  const [token, setToken] = useState("");
-  const twilioVideo = useRef(null);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true)
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true)
+  const [status, setStatus] = useState('disconnected')
+  const [participants, setParticipants] = useState(new Map())
+  const [videoTracks, setVideoTracks] = useState(new Map())
+  const [token, setToken] = useState('')
+  const twilioVideo = useRef(null)
 
   const _onConnectButtonPress = async () => {
-    if (Platform.OS === "android") {
-      await _requestAudioPermission();
-      await _requestCameraPermission();
+    if (Platform.OS === 'android') {
+      await _requestAudioPermission()
+      await _requestCameraPermission()
     }
-    twilioVideo.current.connect({ accessToken: token, enableNetworkQualityReporting: true});
-    setStatus("connecting");
-  };
+    twilioVideo.current.connect({ accessToken: token, enableNetworkQualityReporting: true })
+    setStatus('connecting')
+  }
 
   const _onEndButtonPress = () => {
-    twilioVideo.current.disconnect();
-  };
+    twilioVideo.current.disconnect()
+  }
 
   const _onMuteButtonPress = () => {
     twilioVideo.current
       .setLocalAudioEnabled(!isAudioEnabled)
-      .then((isEnabled) => setIsAudioEnabled(isEnabled));
-  };
+      .then((isEnabled) => setIsAudioEnabled(isEnabled))
+  }
 
   const _onFlipButtonPress = () => {
-    twilioVideo.current.flipCamera();
-  };
+    twilioVideo.current.flipCamera()
+  }
 
   const _onRoomDidConnect = () => {
-    setStatus("connected");
-  };
+    setStatus('connected')
+  }
 
   const _onRoomDidDisconnect = ({ error }) => {
-    console.log("ERROR: ", error);
+    console.log('ERROR: ', error)
 
-    setStatus("disconnected");
-  };
+    setStatus('disconnected')
+  }
 
   const _onRoomDidFailToConnect = (error) => {
-    console.log("ERROR: ", error);
+    console.log('ERROR: ', error)
 
-    setStatus("disconnected");
-  };
+    setStatus('disconnected')
+  }
 
   const _onParticipantAddedVideoTrack = ({ participant, track }) => {
-    console.log("onParticipantAddedVideoTrack: ", participant, track);
+    console.log('onParticipantAddedVideoTrack: ', participant, track)
 
     setVideoTracks(
       new Map([
         ...videoTracks,
         [
           track.trackSid,
-          { participantSid: participant.sid, videoTrackSid: track.trackSid },
-        ],
+          { participantSid: participant.sid, videoTrackSid: track.trackSid }
+        ]
       ])
-    );
-  };
+    )
+  }
 
   const _onParticipantRemovedVideoTrack = ({ participant, track }) => {
-    console.log("onParticipantRemovedVideoTrack: ", participant, track);
+    console.log('onParticipantRemovedVideoTrack: ', participant, track)
 
-    const videoTracks = new Map(videoTracks);
-    videoTracks.delete(track.trackSid);
+    const videoTracks = new Map(videoTracks)
+    videoTracks.delete(track.trackSid)
 
-    setVideoTracks(videoTracks);
-  };
+    setVideoTracks(videoTracks)
+  }
 
   const _onNetworkLevelChanged = ({ participant, isLocalUser, quality }) => {
-    console.log("Participant", participant, "isLocalUser", isLocalUser, "quality", quality);
-  };
-
+    console.log('Participant', participant, 'isLocalUser', isLocalUser, 'quality', quality)
+  }
 
   const _requestAudioPermission = () => {
     return PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
       {
-        title: "Need permission to access microphone",
+        title: 'Need permission to access microphone',
         message:
-          "To run this demo we need permission to access your microphone",
-        buttonNegative: "Cancel",
-        buttonPositive: "OK",
+          'To run this demo we need permission to access your microphone',
+        buttonNegative: 'Cancel',
+        buttonPositive: 'OK'
       }
-    );
-  };
+    )
+  }
 
   const _requestCameraPermission = () => {
     return PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA, {
-      title: "Need permission to access camera",
-      message: "To run this demo we need permission to access your camera",
-      buttonNegative: "Cancel",
-      buttonPositive: "OK",
-    });
-  };
+      title: 'Need permission to access camera',
+      message: 'To run this demo we need permission to access your camera',
+      buttonNegative: 'Cancel',
+      buttonPositive: 'OK'
+    })
+  }
 
   return (
     <View style={styles.container}>
-      {status === "disconnected" && (
+      {status === 'disconnected' && (
         <View>
           <Text style={styles.welcome}>React Native Twilio Video</Text>
           <TextInput
             style={styles.input}
-            autoCapitalize="none"
+            autoCapitalize='none'
             value={token}
             onChangeText={(text) => setToken(text)}
-          ></TextInput>
+          />
           <Button
-            title="Connect"
+            title='Connect'
             style={styles.button}
             onPress={_onConnectButtonPress}
-          ></Button>
+          />
         </View>
       )}
 
-      {(status === "connected" || status === "connecting") && (
+      {(status === 'connected' || status === 'connecting') && (
         <View style={styles.callContainer}>
-          {status === "connected" && (
+          {status === 'connected' && (
             <View style={styles.remoteGrid}>
               {Array.from(videoTracks, ([trackSid, trackIdentifier]) => {
                 return (
@@ -149,7 +148,7 @@ const Example = (props) => {
                     key={trackSid}
                     trackIdentifier={trackIdentifier}
                   />
-                );
+                )
               })}
             </View>
           )}
@@ -165,7 +164,7 @@ const Example = (props) => {
               onPress={_onMuteButtonPress}
             >
               <Text style={{ fontSize: 12 }}>
-                {isAudioEnabled ? "Mute" : "Unmute"}
+                {isAudioEnabled ? 'Mute' : 'Unmute'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -174,7 +173,7 @@ const Example = (props) => {
             >
               <Text style={{ fontSize: 12 }}>Flip</Text>
             </TouchableOpacity>
-            <TwilioVideoLocalView enabled={true} style={styles.localVideo} />
+            <TwilioVideoLocalView enabled style={styles.localVideo} />
           </View>
         </View>
       )}
@@ -189,7 +188,7 @@ const Example = (props) => {
         onNetworkQualityLevelsChanged={_onNetworkLevelChanged}
       />
     </View>
-  );
-};
+  )
+}
 
-AppRegistry.registerComponent("Example", () => Example);
+AppRegistry.registerComponent('Example', () => Example)

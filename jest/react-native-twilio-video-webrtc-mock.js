@@ -16,27 +16,27 @@ class TwilioVideoMock extends Component {
 
   getStats = () => {}
 
-  render() {
-      return (<div />);
+  render () {
+    return (<div />)
   }
 }
 
 class TwilioVideoLocalViewMock extends Component {
-  render() {
-      return (<div />);
+  render () {
+    return (<div />)
   }
 }
 
 class TwilioVideoParticipantViewMock extends Component {
-  render() {
-      return (<div />);
+  render () {
+    return (<div />)
   }
 }
 
 const asMock = {
   TwilioVideo: TwilioVideoMock,
   TwilioVideoLocalView: TwilioVideoLocalViewMock,
-  TwilioVideoParticipantView: TwilioVideoParticipantViewMock,
-};
+  TwilioVideoParticipantView: TwilioVideoParticipantViewMock
+}
 
-export default asMock;
+export default asMock
