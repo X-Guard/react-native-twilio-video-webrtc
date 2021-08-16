@@ -437,7 +437,11 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         this.cameraType = cameraType;
 
         // Share your microphone
-        localAudioTrack = LocalAudioTrack.create(getContext(), enableAudio);
+        if (enableAudio) {
+            localAudioTrack = LocalAudioTrack.create(getContext(), enableAudio);
+        } else {
+            localAudioTrack = null;
+        }
 
         if (cameraCapturer == null && enableVideo) {
             boolean createVideoStatus = createLocalVideo(enableVideo, cameraType);
@@ -491,6 +495,10 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     }
 
     private void setAudioFocus(boolean focus) {
+        if (localAudioTrack == null) {
+            return;
+        }
+
         if (focus) {
             previousAudioMode = audioManager.getMode();
             // Request audio focus before making any device switch.
@@ -643,6 +651,10 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     }
 
     public void toggleAudio(boolean enabled) {
+        if (localAudioTrack == null && enabled) {
+            localAudioTrack = LocalAudioTrack.create(getContext(), true);
+        }
+
         if (localAudioTrack != null) {
             localAudioTrack.enable(enabled);
 
