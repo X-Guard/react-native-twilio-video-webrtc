@@ -5,7 +5,7 @@
     "url": "https://github.com/X-Guard/react-native-twilio-video-webrtc.git"
   },
   "homepage": "https://github.com/X-Guard/react-native-twilio-video-webrtc",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "description": "Twilio Video WebRTC for React Native.",
   "main": "index.js",
   "scripts": {
