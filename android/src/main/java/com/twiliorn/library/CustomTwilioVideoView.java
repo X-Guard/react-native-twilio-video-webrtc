@@ -36,7 +36,7 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 import com.twilio.video.AudioTrackPublication;
 import com.twilio.video.BaseTrackStats;
-import com.twilio.video.CameraCapturer;
+import com.twilio.video.Camera2Capturer;
 import com.twilio.video.ConnectOptions;
 import com.twilio.video.LocalAudioTrack;
 import com.twilio.video.LocalAudioTrackPublication;
@@ -69,10 +69,10 @@ import com.twilio.video.StatsReport;
 import com.twilio.video.TrackPublication;
 import com.twilio.video.TwilioException;
 import com.twilio.video.Video;
-import com.twilio.video.VideoConstraints;
-import com.twilio.video.VideoDimensions;
 
 import org.webrtc.voiceengine.WebRtcAudioManager;
+
+import tvi.webrtc.Camera2Enumerator;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -105,11 +105,16 @@ import static com.twiliorn.library.CustomTwilioVideoView.Events.ON_DOMINANT_SPEA
 public class CustomTwilioVideoView extends View implements LifecycleEventListener, AudioManager.OnAudioFocusChangeListener {
     private static final String TAG = "CustomTwilioVideoView";
     private static final String DATA_TRACK_MESSAGE_THREAD_NAME = "DataTrackMessages";
+    private static final String FRONT_CAMERA_TYPE = "front";
+    private static final String BACK_CAMERA_TYPE = "back";
     private boolean enableRemoteAudio = false;
     private boolean enableNetworkQualityReporting = false;
     private boolean isVideoEnabled = false;
     private boolean dominantSpeakerEnabled = false;
+    private static String frontFacingDevice;
+    private static String backFacingDevice;
     private boolean maintainVideoTrackInBackground = false;
+    private String cameraType = "";
 
     @Retention(RetentionPolicy.SOURCE)
     @StringDef({Events.ON_CAMERA_SWITCHED,
@@ -182,7 +187,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private static PatchedVideoView thumbnailVideoView;
     private static LocalVideoTrack localVideoTrack;
 
-    private static CameraCapturer cameraCapturer;
+    private static Camera2Capturer cameraCapturer;
     private LocalAudioTrack localAudioTrack;
     private AudioManager audioManager;
     private int previousAudioMode;
@@ -234,33 +239,27 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
     // ===== SETUP =================================================================================
 
-    private VideoConstraints buildVideoConstraints() {
-        return new VideoConstraints.Builder()
-                .minVideoDimensions(VideoDimensions.CIF_VIDEO_DIMENSIONS)
-                .maxVideoDimensions(VideoDimensions.CIF_VIDEO_DIMENSIONS)
-                .minFps(5)
-                .maxFps(15)
-                .build();
-    }
-
-    private CameraCapturer createCameraCaputer(Context context, CameraCapturer.CameraSource cameraSource) {
-        CameraCapturer newCameraCapturer = null;
+    private Camera2Capturer createCameraCaputer(Context context, String cameraId) {
+        Camera2Capturer newCameraCapturer = null;
         try {
-            newCameraCapturer = new CameraCapturer(
+            newCameraCapturer = new Camera2Capturer(
                     context,
-                    cameraSource,
-                    new CameraCapturer.Listener() {
+                    cameraId,
+                    new Camera2Capturer.Listener() {
                         @Override
                         public void onFirstFrameAvailable() {
                         }
 
                         @Override
-                        public void onCameraSwitched() {
+                        public void onCameraSwitched(String newCameraId) {
                             setThumbnailMirror();
+                            WritableMap event = new WritableNativeMap();
+                            event.putBoolean("isBackCamera", isCurrentCameraSourceBackFacing());
+                            pushEvent(CustomTwilioVideoView.this, ON_CAMERA_SWITCHED, event);
                         }
 
                         @Override
-                        public void onError(int i) {
+                        public void onError(Camera2Capturer.Exception camera2CapturerException) {
                             Log.i("CustomTwilioVideoView", "Error getting camera");
                         }
                     }
@@ -271,27 +270,55 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         }
     }
 
-    private boolean createLocalVideo(boolean enableVideo) {
-      isVideoEnabled = enableVideo;
-        // Share your camera
-        cameraCapturer = this.createCameraCaputer(getContext(), CameraCapturer.CameraSource.FRONT_CAMERA);
-        if (cameraCapturer == null){
-            cameraCapturer = this.createCameraCaputer(getContext(), CameraCapturer.CameraSource.BACK_CAMERA);
+    private void buildDeviceInfo() {
+        Camera2Enumerator enumerator = new Camera2Enumerator(getContext());
+        String[] deviceNames = enumerator.getDeviceNames();
+        backFacingDevice = null;
+        frontFacingDevice = null;
+        for (String deviceName : deviceNames) {
+            if (enumerator.isBackFacing(deviceName) && enumerator.getSupportedFormats(deviceName).size() > 0) {
+                backFacingDevice = deviceName;
+            } else if (enumerator.isFrontFacing(deviceName) && enumerator.getSupportedFormats(deviceName).size() > 0) {
+                frontFacingDevice = deviceName;
+            }
         }
-        if (cameraCapturer == null){
+    }
+
+    private boolean createLocalVideo(boolean enableVideo, String cameraType) {
+        isVideoEnabled = enableVideo;
+
+        // Share your camera
+        buildDeviceInfo();
+
+        if (cameraType.equals(CustomTwilioVideoView.FRONT_CAMERA_TYPE)) {
+            if (frontFacingDevice != null) {
+                cameraCapturer = this.createCameraCaputer(getContext(), frontFacingDevice);
+            } else {
+                // IF the camera is unavailable try the other camera
+                cameraCapturer = this.createCameraCaputer(getContext(), backFacingDevice);
+            }
+        } else {
+            if (backFacingDevice != null) {
+                cameraCapturer = this.createCameraCaputer(getContext(), backFacingDevice);
+            } else {
+                // IF the camera is unavailable try the other camera
+                cameraCapturer = this.createCameraCaputer(getContext(), frontFacingDevice);
+            }
+        }
+
+        // If no camera is available let the caller know
+        if (cameraCapturer == null) {
             WritableMap event = new WritableNativeMap();
             event.putString("error", "No camera is supported on this device");
             pushEvent(CustomTwilioVideoView.this, ON_CONNECT_FAILURE, event);
             return false;
         }
 
-        if (cameraCapturer.getSupportedFormats().size() > 0) {
-            localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturer, buildVideoConstraints());
-            if (thumbnailVideoView != null && localVideoTrack != null) {
-                localVideoTrack.addRenderer(thumbnailVideoView);
-            }
-            setThumbnailMirror();
+        localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturer);
+        if (thumbnailVideoView != null && localVideoTrack != null) {
+            localVideoTrack.addSink(thumbnailVideoView);
         }
+        setThumbnailMirror();
         return true;
     }
 
@@ -308,12 +335,12 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
              * If the local video track was released when the app was put in the background, recreate.
              */
             if (cameraCapturer != null && localVideoTrack == null) {
-                localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturer, buildVideoConstraints());
+                localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturer);
             }
 
             if (localVideoTrack != null) {
                 if (thumbnailVideoView != null) {
-                    localVideoTrack.addRenderer(thumbnailVideoView);
+                    localVideoTrack.addSink(thumbnailVideoView);
                 }
 
                 /*
@@ -391,33 +418,46 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     // ====== CONNECTING ===========================================================================
 
     public void connectToRoomWrapper(
-            String roomName, String accessToken, boolean enableAudio, boolean enableVideo,
-            boolean enableRemoteAudio, boolean enableNetworkQualityReporting, boolean dominantSpeakerEnabled, boolean maintainVideoTrackInBackground) {
+            String roomName,
+            String accessToken,
+            boolean enableAudio,
+            boolean enableVideo,
+            boolean enableRemoteAudio,
+            boolean enableNetworkQualityReporting,
+            boolean dominantSpeakerEnabled,
+            boolean maintainVideoTrackInBackground,
+            String cameraType
+          ) {
         this.roomName = roomName;
         this.accessToken = accessToken;
-        this.enableRemoteAudio = enableAudio;
+        this.enableRemoteAudio = enableRemoteAudio;
         this.enableNetworkQualityReporting = enableNetworkQualityReporting;
         this.dominantSpeakerEnabled = dominantSpeakerEnabled;
         this.maintainVideoTrackInBackground = maintainVideoTrackInBackground;
+        this.cameraType = cameraType;
 
         // Share your microphone
         localAudioTrack = LocalAudioTrack.create(getContext(), enableAudio);
 
-        if (cameraCapturer == null) {
-            boolean createVideoStatus = createLocalVideo(enableVideo);
+        if (cameraCapturer == null && enableVideo) {
+            boolean createVideoStatus = createLocalVideo(enableVideo, cameraType);
             if (!createVideoStatus) {
+                Log.d("RNTwilioVideo", "Failed to create local video");
                 // No need to connect to room if video creation failed
                 return;
         }
-    }
-        connectToRoom(enableAudio);
+        } else {
+            isVideoEnabled = false;
+        }
+
+        setAudioFocus(enableAudio);
+        connectToRoom();
     }
 
-    public void connectToRoom(boolean enableAudio) {
+    public void connectToRoom() {
         /*
          * Create a VideoClient allowing you to connect to a Room
          */
-        setAudioFocus(enableAudio);
         ConnectOptions.Builder connectOptionsBuilder = new ConnectOptions.Builder(this.accessToken);
 
         if (this.roomName != null) {
@@ -545,11 +585,14 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
           }
         }
 
+    private static boolean isCurrentCameraSourceBackFacing() {
+        return cameraCapturer != null && cameraCapturer.getCameraId().equals(backFacingDevice);
+    }
+
     // ===== BUTTON LISTENERS ======================================================================
     private static void setThumbnailMirror() {
         if (cameraCapturer != null) {
-            CameraCapturer.CameraSource cameraSource = cameraCapturer.getCameraSource();
-            final boolean isBackCamera = (cameraSource == CameraCapturer.CameraSource.BACK_CAMERA);
+            final boolean isBackCamera = isCurrentCameraSourceBackFacing();
             if (thumbnailVideoView != null && thumbnailVideoView.getVisibility() == View.VISIBLE) {
                 thumbnailVideoView.setMirror(!isBackCamera);
             }
@@ -558,17 +601,29 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
     public void switchCamera() {
         if (cameraCapturer != null) {
-            cameraCapturer.switchCamera();
-            CameraCapturer.CameraSource cameraSource = cameraCapturer.getCameraSource();
-            final boolean isBackCamera = cameraSource == CameraCapturer.CameraSource.BACK_CAMERA;
-            WritableMap event = new WritableNativeMap();
-            event.putBoolean("isBackCamera", isBackCamera);
-            pushEvent(CustomTwilioVideoView.this, ON_CAMERA_SWITCHED, event);
+            final boolean isBackCamera = isCurrentCameraSourceBackFacing();
+            if (frontFacingDevice != null && (isBackCamera || backFacingDevice == null)) {
+                cameraCapturer.switchCamera(frontFacingDevice);
+                cameraType = CustomTwilioVideoView.FRONT_CAMERA_TYPE;
+            } else {
+                cameraCapturer.switchCamera(backFacingDevice);
+                cameraType = CustomTwilioVideoView.BACK_CAMERA_TYPE;
+            }
         }
     }
 
     public void toggleVideo(boolean enabled) {
-      isVideoEnabled = enabled;
+        isVideoEnabled = enabled;
+
+        if (cameraCapturer == null && enabled) {
+            String fallbackCameraType = cameraType == null ? CustomTwilioVideoView.FRONT_CAMERA_TYPE : cameraType;
+            boolean createVideoStatus = createLocalVideo(true, fallbackCameraType);
+            if (!createVideoStatus) {
+                Log.d("RNTwilioVideo", "Failed to create local video");
+                return;
+            }
+        }
+
         if (localVideoTrack != null) {
             localVideoTrack.enable(enabled);
 
@@ -1146,9 +1201,9 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                         continue;
                     }
                     if (publication.getTrackSid().equals(trackSid)) {
-                        track.addRenderer(v);
+                        track.addSink(v);
                     } else {
-                        track.removeRenderer(v);
+                        track.removeSink(v);
                     }
                 }
             }
@@ -1158,7 +1213,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     public static void registerThumbnailVideoView(PatchedVideoView v) {
         thumbnailVideoView = v;
         if (localVideoTrack != null) {
-            localVideoTrack.addRenderer(v);
+            localVideoTrack.addSink(v);
         }
         setThumbnailMirror();
     }

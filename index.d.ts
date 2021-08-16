@@ -5,36 +5,46 @@ export interface TrackIdentifier {
   participantSid: string;
   videoTrackSid: string;
 }
+
 type scaleType = "fit" | "fill";
+
 interface TwilioVideoParticipantViewProps extends ViewProps {
   trackIdentifier: TrackIdentifier;
   ref?: React.Ref<any>;
   scaleType?: scaleType;
 }
+
 interface TwilioVideoLocalViewProps extends ViewProps {
   enabled: boolean;
   ref?: React.Ref<any>;
   scaleType?: scaleType;
 }
+
 interface Participant {
   sid: string;
   identity: string;
 }
+
 interface Track {
   enabled: boolean;
   trackName: string;
   trackSid: string;
 }
+
 export interface TrackEventCbArgs {
   participant: Participant;
   track: Track;
 }
+
 export type TrackEventCb = (t: TrackEventCbArgs) => void;
+
 export interface DataTrackEventCbArgs {
   message: string;
   trackSid: string;
 }
+
 export type DataTrackEventCb = (t: DataTrackEventCbArgs) => void;
+
 interface RoomEventCommonArgs {
   roomName: string;
   roomSid: string;
@@ -60,6 +70,7 @@ type NetworkLevelChangeEventArgs = {
 };
 
 export type RoomEventCb = (p: RoomEventArgs) => void;
+
 export type RoomErrorEventCb = (t: RoomErrorEventArgs) => void;
 
 export type ParticipantEventCb = (p: ParticipantEventArgs) => void;
