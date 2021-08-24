@@ -401,7 +401,7 @@ RCT_EXPORT_METHOD(getStats) {
 }
 
 RCT_EXPORT_METHOD(connect:(NSString *)accessToken roomName:(NSString *)roomName enableAudio:(BOOL *)enableAudio enableVideo:(BOOL *)enableVideo encodingParameters:(NSDictionary *)encodingParameters enableNetworkQualityReporting:(BOOL *)enableNetworkQualityReporting dominantSpeakerEnabled:(BOOL *)dominantSpeakerEnabled cameraType:(NSString *)cameraType) {
-  [self _setLocalVideoEnabled enabled:enableVideo cameraType:cameraType];
+  [self _setLocalVideoEnabled:enableVideo cameraType:cameraType];
 
   // Init audio if necessary
   if (self.localAudioTrack == nil && enableAudio) {
